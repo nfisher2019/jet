@@ -12,6 +12,7 @@ const (
 	fallTroughOptions // fall trough options
 
 	ShortName
+	DontUseSchema
 )
 
 // WithFallTrough extends existing serialize options with additional

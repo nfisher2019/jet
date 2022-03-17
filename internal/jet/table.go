@@ -76,7 +76,7 @@ func (t *tableImpl) serialize(statement StatementType, out *SQLBuilder, options 
 	}
 
 	// Use default schema if the schema name is not set
-	if len(t.schemaName) > 0 {
+	if len(t.schemaName) > 0 && !contains(options, DontUseSchema) {
 		out.WriteIdentifier(t.schemaName)
 		out.WriteString(".")
 	}

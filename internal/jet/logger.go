@@ -9,7 +9,7 @@ import (
 
 // PrintableStatement is a statement which sql query can be logged
 type PrintableStatement interface {
-	Sql() (query string, args []interface{})
+	Sql(options ...SerializeOption) (query string, args []interface{})
 	DebugSql() (query string)
 }
 

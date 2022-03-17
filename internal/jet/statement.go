@@ -10,7 +10,7 @@ import (
 //Statement is common interface for all statements(SELECT, INSERT, UPDATE, DELETE, LOCK)
 type Statement interface {
 	// Sql returns parametrized sql query with list of arguments.
-	Sql() (query string, args []interface{})
+	Sql(options ...SerializeOption) (query string, args []interface{})
 	// DebugSql returns debug query where every parametrized placeholder is replaced with its argument.
 	// Do not use it in production. Use it only for debug purposes.
 	DebugSql() (query string)
@@ -22,6 +22,7 @@ type Statement interface {
 	// Destination can be either pointer to struct or pointer to a slice.
 	// If destination is pointer to struct and query result set is empty, method returns qrm.ErrNoRows.
 	QueryContext(ctx context.Context, db qrm.DB, destination interface{}) error
+	QueryContextWithoutSchema(ctx context.Context, db qrm.DB, destination interface{}) error
 	// Exec executes statement over db connection/transaction without returning any rows.
 	Exec(db qrm.DB) (sql.Result, error)
 	// ExecContext executes statement with context over db connection/transaction without returning any rows.
@@ -67,11 +68,32 @@ type serializerStatementInterfaceImpl struct {
 	parent        SerializerStatement
 }
 
-func (s *serializerStatementInterfaceImpl) Sql() (query string, args []interface{}) {
+func (s *serializerStatementInterfaceImpl) QueryContextWithoutSchema(ctx context.Context, db qrm.DB, destination interface{}) error {
+	query, args := s.Sql(DontUseSchema)
 
+	callLogger(ctx, s)
+
+	var rowsProcessed int64
+	var err error
+
+	duration := duration(func() {
+		rowsProcessed, err = qrm.Query(ctx, db, query, args, destination)
+	})
+
+	callQueryLoggerFunc(ctx, QueryInfo{
+		Statement:     s,
+		RowsProcessed: rowsProcessed,
+		Duration:      duration,
+		Err:           err,
+	})
+
+	return err
+}
+
+func (s *serializerStatementInterfaceImpl) Sql(options ...SerializeOption) (query string, args []interface{}) {
 	queryData := &SQLBuilder{Dialect: s.dialect}
 
-	s.parent.serialize(s.statementType, queryData, NoWrap)
+	s.parent.serialize(s.statementType, queryData, options...)
 
 	query, args = queryData.finalize()
 	return
